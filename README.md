@@ -399,5 +399,5 @@ Demonstrate CSV validation, manual entry, a partial payment, an overdue invoice,
 
 ## Submission checklist
 
-Included: Python modules, pytest tests, requirements file, README, original sample input, Word project description/flow diagram, and AI assistance notes. The app generates the operational database, application log, import issues, and reports in `files/` or the selected export destination.
+Included: Python modules, pytest tests, requirements file, README, original sample input, Word project description/flow diagram. The app generates the operational database, application log, import issues, and reports in `files/` or the selected export destination.
 

@@ -22,7 +22,7 @@ FILES = BASE / 'files'
 
 class InvoiceApp(tk.Tk):
     def __init__(self, database_path=None, online_rates=True):
-        # Keep Tk coordinates consistent on Windows displays with scaling enabled.
+        
         import sys
         if sys.platform == 'win32':
             import ctypes

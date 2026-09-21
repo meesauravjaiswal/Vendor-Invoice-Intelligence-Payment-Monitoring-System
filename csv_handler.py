@@ -83,5 +83,5 @@ def export_csv(path, rows):
         writer = csv.DictWriter(target,fieldnames=list(rows[0]))
         writer.writeheader()
         for row in rows:
-            # Prevent spreadsheet formula execution when exported text is opened in Excel.
+            
             writer.writerow({k:("'"+v if isinstance(v,str) and v.startswith(('=','+','-','@')) else v) for k,v in row.items()})

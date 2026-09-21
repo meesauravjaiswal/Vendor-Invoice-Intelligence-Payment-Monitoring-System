@@ -31,7 +31,7 @@ class CurrencyConverter:
         inserted = 0
         with self.repo.connection as c:
             for currency, rate in rates.items():
-                # Never overwrite manual settings or newer stored rates.
+                
                 if c.execute('SELECT 1 FROM exchange_rates WHERE currency=? AND rate_date>=?',(currency,str(effective))).fetchone():
                     continue
                 c.execute('INSERT INTO exchange_rates(currency,rate_date,inr_per_unit,source) VALUES (?,?,?,?)',
