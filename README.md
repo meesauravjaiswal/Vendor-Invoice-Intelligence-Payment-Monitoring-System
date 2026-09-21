@@ -249,6 +249,91 @@ The `Payment` dataclass defines a payment value type; current persistence method
 
 ## Input examples and validation details
 
+### How to prepare your own CSV or Excel file
+
+Use one table: the first row contains column names and each following row represents one invoice. Do not add a title, instructions, merged headings, subtotals or a totals row above or inside the table. The importer matches column names, so their order can change, but use the exact lowercase names below. Names such as `Vendor Name`, `Amount Paid`, or `due_date` are not aliases for the required headings.
+
+#### Required columns
+
+All eight columns must exist and have a value in every invoice row.
+
+| Exact column name | Meaning | Example and rule |
+|---|---|---|
+| `invoice_id` | Unique internal invoice record ID | `CUSTOM-001`; must not already exist |
+| `supplier_id` | Stable vendor identifier | `CUSTOM-SUP-01`; reuse for the same vendor |
+| `supplier_name` | Vendor name | `Example Stationery`; must match existing details for that supplier ID |
+| `invoice_number` | Number printed on the invoice | `BILL-1001`; the supplier ID and invoice number combination must be unique |
+| `invoice_date` | Invoice issue date | `2024-01-10`; cannot be in the future |
+| `invoice_due_date` | Payment due date | `2024-02-10`; cannot precede invoice date; future due dates are allowed |
+| `invoice_amount` | Full invoice total in its original currency | `1500.50`; positive for active invoices |
+| `currency` | Currency of both invoice and payment amounts | `INR`; supported: INR, USD, EUR, GBP, CNY, SEK, BRL, CAD, JPY |
+
+#### Optional columns
+
+These columns may be omitted entirely. If included, leave unused cells empty, not `N/A`, `None`, or `-`.
+
+| Exact column name | What to enter | Behavior when omitted or blank |
+|---|---|---|
+| `supplier_tax_id` | Vendor tax identifier as text | Empty; must match the saved supplier's tax ID, including whether it is empty |
+| `invoice_submission_date` | Date submitted, in `YYYY-MM-DD` format | Defaults to invoice date; must be on/after issue date and not in the future |
+| `payment_amount` | Total amount already paid, in the invoice currency | Defaults to zero; cannot be negative or exceed invoice total |
+| `payment_date` | Date of the imported payment | Required when payment amount is positive; otherwise leave empty; must be between invoice date and today |
+| `payment_method` | Payment description, such as `Bank transfer` | Empty; saved with a positive imported payment |
+| `payment_reference` | Transaction reference | Empty; saved with a positive imported payment |
+| `payment_status` | Blank, `active`, `pending`, `partial`, `paid`, `overdue`, or `cancelled` | Status is calculated from amounts; use `cancelled` explicitly to cancel an invoice |
+| `days_to_payment` | Source duration in whole days | Optional reference; when submission and payment dates are supplied, a mismatch produces a warning |
+| `is_overdue` | Source overdue indicator | Reference only; actual overdue status is recalculated from balance and due date |
+| `created_at`, `updated_at` | Optional source timestamps | Not used as local database creation/update timestamps |
+
+Use `partial`, not `Partially paid`, in imported status cells. `paid` requires payment equal to the invoice total; `partial` requires a positive payment below the total; `pending` requires zero payment; `cancelled` requires zero payment and permits a zero invoice amount. Leaving status blank is usually simplest. An `overdue` label does not force the calculated invoice status: the application checks the selected reporting date and unpaid balance.
+
+#### Minimal CSV example with no payments
+
+Copy the following into a UTF-8 text file such as `my_invoices.csv`. The header and data must be comma-separated. These illustrative IDs are separate from the bundled dataset; importing the same example twice will produce duplicate errors.
+
+```csv
+invoice_id,supplier_id,supplier_name,invoice_number,invoice_date,invoice_due_date,invoice_amount,currency
+CUSTOM-001,CUSTOM-SUP-01,Example Stationery,BILL-1001,2024-01-10,2024-02-10,1500.50,INR
+CUSTOM-002,CUSTOM-SUP-02,Example Software,BILL-1002,2024-01-15,2024-02-15,250.75,USD
+```
+
+#### CSV example with unpaid partial paid and cancelled invoices
+
+```csv
+invoice_id,supplier_id,supplier_name,invoice_number,invoice_date,invoice_due_date,invoice_amount,currency,payment_amount,payment_date,payment_status
+PAY-DEMO-001,PAY-SUP-01,Sample Vendor,INV-1001,2024-01-10,2024-02-10,1500,INR,0,,pending
+PAY-DEMO-002,PAY-SUP-01,Sample Vendor,INV-1002,2024-01-10,2024-02-10,100,USD,40,2024-01-20,partial
+PAY-DEMO-003,PAY-SUP-02,Second Vendor,INV-1003,2024-01-10,2024-02-10,200,EUR,200,2024-01-25,paid
+PAY-DEMO-004,PAY-SUP-02,Second Vendor,INV-1004,2024-01-10,2024-02-10,0,JPY,0,,cancelled
+```
+
+At a reporting date of `2024-03-01`, the first two invoices have outstanding balances of INR 1,500 and USD 60 and are overdue. The third is paid with zero outstanding. The fourth is cancelled and excluded from financial summaries. Original currencies remain separate; a converted total additionally needs applicable exchange rates. Dates are historical deliberately so invoice/payment dates pass the no-future-date rule.
+
+#### How the same data looks in Excel
+
+Create an `.xlsx` workbook with this table starting at cell A1 on its **first worksheet**. Use the optional columns from the preceding example to include payments.
+
+| invoice_id | supplier_id | supplier_name | invoice_number | invoice_date | invoice_due_date | invoice_amount | currency |
+|---|---|---|---|---|---|---|---|
+| CUSTOM-001 | CUSTOM-SUP-01 | Example Stationery | BILL-1001 | 2024-01-10 | 2024-02-10 | 1500.50 | INR |
+| CUSTOM-002 | CUSTOM-SUP-02 | Example Software | BILL-1002 | 2024-01-15 | 2024-02-15 | 250.75 | USD |
+
+Excel row 1 must contain unique, non-empty headings. Only the first worksheet is imported, regardless of which sheet is selected when you save. Native Excel dates and ISO date text are supported. Format identifiers as **Text** before entering values to preserve leading zeros. Use numeric amounts or plain decimal text. For precision-sensitive long decimals, use text cells to avoid Excel's numeric precision limit. Formula cells anywhere in a data row cause that row to be rejected; use **Copy → Paste Special → Values** first. Save older `.xls` files as `.xlsx`.
+
+#### Import checklist and common mistakes
+
+1. Include all eight required headings, spelled exactly, with no surrounding spaces in CSV headers. Use unique headings in both formats.
+2. Use one invoice per row. The importer is not a line-item or payment-transaction importer. Multiple payments already made are imported as one aggregate payment with the supplied payment date; later payments can be entered through **Invoices & payments**.
+3. Enter plain amounts such as `1500.50`, without currency symbols or grouping commas. Negative amounts, overpayments and non-finite values are rejected. Fractional JPY is supported. The maximum input precision is 12 decimal places, subject to the scaled amount limit described below.
+4. In CSV, each data row must contain the same number of fields as the header. Retain delimiters for empty cells; quote text containing commas, for example `"Example Supplies, Ltd"`. Save as UTF-8 comma-delimited CSV, not semicolon-delimited text.
+5. Keep supplier names and tax IDs consistent across every row with the same supplier ID and with any supplier already saved. Invoice IDs and supplier/invoice-number pairs must be new.
+6. Open **Add invoice → Import CSV or Excel**, or the import option under **Import & export**, select the file, and review the completion dialog. Valid rows are saved independently. Review `files/import_issues.csv` when issues are reported; a warning may describe a row that was imported successfully.
+7. Reimporting does not update existing invoices or append payments to them. To correct an invoice, use the application's delete-and-replace workflow; deleting an invoice also deletes its linked payments.
+
+Do not add calculated `outstanding`, `outstanding_converted`, report currency, or exchange-rate columns expecting them to control calculations. Extra named columns do not become application fields. `subtotal` and `tax_amount` are not arithmetic-validated by this implementation: supply the final total in `invoice_amount`. Exported invoice reports use different headings and are not direct import templates.
+
+### Additional amount and validation details
+
 ```csv
 invoice_id,supplier_id,supplier_name,invoice_number,invoice_date,invoice_due_date,invoice_amount,currency,payment_amount,payment_date
 DEMO-001,SUP-DEMO,Example Supplier,BILL-001,2024-01-01,2024-01-31,100.50,USD,40.25,2024-01-15
