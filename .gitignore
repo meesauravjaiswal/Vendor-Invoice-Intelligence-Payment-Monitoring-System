@@ -1,0 +1,15 @@
+__pycache__/
+.pytest_cache/
+.venv/
+files/*.db
+files/*.log
+files/*.db-*
+files/import_issues.csv
+files/invoice_report.csv
+files/vendor_summary.csv
+*.py[cod]
+.env
+.env.*
+!.env.example
+~$*.docx
+*.zip

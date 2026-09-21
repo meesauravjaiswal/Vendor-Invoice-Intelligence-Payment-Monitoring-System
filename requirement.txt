@@ -1,0 +1,17 @@
+# Python 3.10+ with Tcl/Tk support (tested using Python 3.12).
+# Install: .\.venv\Scripts\python.exe -m pip install -r requirement.txt
+
+# Runtime dependency for Excel .xlsx imports (verified with 3.1.5).
+openpyxl>=3.1,<4
+
+# Test dependency (verified with 9.1.1); not required to launch the UI.
+pytest>=8,<10
+
+# Built into Python; DO NOT pip-install these modules:
+# tkinter (ttk, messagebox, filedialog, simpledialog), sqlite3, csv,
+# datetime, decimal, pathlib, logging, dataclasses, collections, json,
+# threading, queue, urllib.request, re, sys, ctypes (Windows only).
+# Transitive dependencies are installed automatically by pip.
+# No SQLite server, requests, forex-python, Pandas or web framework is needed.
+# The Word report is already generated; document-generation packages are
+# not required to run this project.
